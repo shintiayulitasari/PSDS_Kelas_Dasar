@@ -1,0 +1,236 @@
+---
+title: "Last Project (Analisis Data menggunakan R)"
+author: "Shintia Yulita Sari"
+date: "1/18/2022"
+output: html_document
+---
+
+# THE WORLD HAPPINESS REPORT
+
+# Latar Belakang Dataset
+The world happiness report adalah survei tentang keadaan kebahagiaan secara global. Laporan pertama diterbitkan pada 2012, kedua pada 2013, ketiga pada 2015, dan keempat pada pembaharuan 2016. Laporan ini mendapat pengakuan global karena pemerintah, organisasi, dan masyarakat sipil semakin menggunakan indikator kebahagiaan untuk menginformasikan keputusan pembuatan kebijakan mereka. Laporan meninjau keadaan kebahagiaana di dunia saat ini.
+
+Skor dan peringkat kebahagiaan menggunakan data dari Gallup World Poll. Skor didasarkan pada jawaban atas pertanyaan evaluasi kehidupan utama yang diajukan dalam jajak pendapat. Pertanyaan ini, yang dikenal sebagai tangga Cantril, meminta responden untuk memikirkan tangga dengan kemungkinan kehidupan terbaik bagi mereka adalah 10 dan kemungkinan kehidupan terburuk adalah 0 dan untuk menilai kehidupan mereka sendiri saat ini pada skala itu.
+
+Kolom yang mengikuti skor kebahagiaan memperkirakan sejauh mana masing-masing dari enam faktor - produksi ekonomi, dukungan sosial, harapan hidup, kebebasan, tidak adanya korupsi, dan kemurahan hati - berkontribusi membuat evaluasi kehidupan lebih tinggi di setiap negara daripada di Dystopia, sebuah negara dengan hipotesis yang memiliki nilai sama dengan rata-rata nasional terendah di dunia untuk masing-masing dari enam faktor. Mereka tidak berdampak pada skor total yang dilaporkan untuk setiap negara, tetapi mereka menjelaskan mengapa beberapa negara memiliki peringkat lebih tinggi daripada yang lain.
+
+Pada mini project ini, Saya akan menggunakan dataset laporan tahun 2019.
+
+# Pertanyaan Analisis
+Faktor apa yang paling mempengaruhi tingkat kebahagiaan di dunia pada tahun 2019?
+
+# EDA (Exploratory Data Analysis)
+```{r}
+# Import Library
+library(heatmaply)
+library(visdat)
+library(reshape2)
+library(tidyr)
+library(ggplot2) 
+library(psych)
+library(DataExplorer)
+library(plotly)
+library(httr)
+library(lubridate)
+library(dplyr)
+library(rjson)
+library(leaflet)
+library(RCurl)
+```
+```{r}
+# Mengakses Data Set
+df<- read.csv("D:/1. KULIAH/Lain-lain/PSDS/Kelas Dasar 3.0/World_Happiness_Report_2019.csv")
+df[df==""] <- NA
+df[0:10,]
+```
+## Tujuan Analisis Data
+Melakukan analisis untuk memperoleh faktor yang paling mempengaruhi tingkat kebahagiaan.
+
+## Memahami Dataset
+Variabel-variabel yang terdapat pada dataset ini adalah sebagai berikut:
+
+1. **Country or region** = negara atau wilayah milik negara
+2. **Overall rank** = Peringkat negara berdasarkan Skor Kebahagiaan
+3. **Score** = Sebuah metrik yang diukur pada tahun 2019 dengan mengajukan pertanyaan kepada orang-orang yang dijadikan sampel: "Bagaimana Anda menilai kebahagiaan Anda dalam skala 0 hingga 10 di mana 10 adalah yang paling bahagia."
+4. **GDP per capita** = Sejauh mana kontribusi GDP terhadap perhitungan Skor Kebahagiaan.
+5. **Social support** = Sejauh mana Keluarga atau dukungan sosial berkontribusi dalam penghitungan Skor Kebahagiaan
+6. **Healthy life expectancy** = Sejauh mana Angka Harapan Hidup berkontribusi terhadap perhitungan Skor Kebahagiaan
+7. **Freedom to make life choices** = Sejauh mana Kebebasan berkontribusi pada perhitungan Happiness Score.
+8. **Generosity** = Sejauh mana Kedermawanan berkontribusi dalam penghitungan Skor Kebahagiaan.
+9. **Perceptions of corruption** = Sejauh mana Persepsi Korupsi berkontribusi terhadap Skor Kebahagiaan.
+
+
+```{r}
+## DIMENSI DATA
+dim(df)
+```
+
+Artinya kita memiliki data dengan 9 kolom dan 156 baris.
+
+
+```{r}
+## VARIABEL DATA SET
+names(df)
+```
+```{r}
+# Mengubah nama setiap kolom terkhusus kolom yang akan dianalisis
+names(df)[1]<-paste("Rank")
+names(df)[2]<-paste("Country")
+names(df)[6]<-paste("Life Expectancy")
+names(df)[7]<-paste("Freedom")
+names(df)
+```
+```{r}
+str(df)
+```
+
+```{r}
+## MENGECEK MISSING DATA
+sapply(df, function(x) sum(is.na(x)))
+```
+```{r}
+heatmaply_na(
+  df[1:20,],
+  showticklabels = c(TRUE, FALSE)
+)
+```
+```{r}
+vis_miss(df)
+```
+
+Dari ketiga hasil di atas diperoleh bahwa tidak ada kolom dengan missing data. Jadi tidak perlu melakukan step hapus data.
+
+
+```{r}
+## MENGECEK OUTLIER
+num_cols <- unlist(lapply(df, is.numeric)) #Memilih kolom bertipe numerik
+df_num <- df[ , num_cols]  
+boxplot(df_num)
+```
+
+Titik lingkaran di luar boxplot adalah outlier. Sehingga kolom yang mengandung outlier adalah Social.support, Life.Expectancy, Freedom, Generosity, Perceptions.
+
+```{r}
+## MELIHAT KORELASI DATA
+plot_correlation(df_num)
+```
+
+```{r}
+## MELIHAT STATISTIK DATA
+summary(df)
+```
+```{r}
+d <- melt(df_num)
+```
+```{r}
+ggplot(d,aes(x = value)) + 
+    facet_wrap(~variable,scales = "free_x") + 
+    geom_histogram()
+```
+
+```{r}
+## PAIR PLOT
+pairs.panels(df_num, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+```
+
+# Data Preprocessing
+```{r}
+# SELEKSI KOLOM
+df$Rank<- NULL
+df$Score<- NULL
+df$year<- NULL
+head(df)
+```
+```{r}
+# MENGHAPUS OUTLIER
+is_outlier <- function(x, na.rm = FALSE) {
+  qs = quantile(x, probs = c(0.25, 0.75), na.rm = na.rm)
+
+  lowerq <- qs[1]
+  upperq <- qs[2]
+  iqr = upperq - lowerq 
+
+  extreme.threshold.upper = (iqr * 3) + upperq
+  extreme.threshold.lower = lowerq - (iqr * 3)
+
+  # Return logical vector
+  x > extreme.threshold.upper | x < extreme.threshold.lower
+}
+remove_outliers <- function(df, cols = names(df)) {
+  for (col in cols) {
+    cat("Removing outliers in column: ", col, " \n")
+    df<- df[!is_outlier(df[[col]]),]
+  }
+  df
+}
+
+
+vars_of_interest <- c("Social.support", "Life.Expectancy", "Freedom", "Generosity","Perceptions")
+
+
+df_filtered <- remove_outliers(df, vars_of_interest)
+```
+```{}
+boxplot(df_filtered)
+```
+```{r}
+# NORMALISASI DATA
+unit_length <- function(x) {
+                            x / sqrt(sum(x^2))
+                            }
+unit_length_df <- as.data.frame(lapply(df_num, unit_length))
+
+head(unit_length_df)
+```
+
+# Data Visualization
+```{r}
+library(plotly)
+```
+```{r}
+fig <- plot_ly(x = df['Country'],
+               y = df['GDP.per.capita'],
+               name = "GDP per capita",
+               line = list(color = 'rgb(22, 96, 167)'),
+               marker = list(color = 'rgb(22, 96, 167)'),
+               type = 'scatter', mode = 'lines+markers')
+
+fig <- fig %>% add_trace (x = df['Country'],
+                          y = df['Social.support'],
+                          name = "Social support",
+                          line = list(color = 'rgb(96, 167, 22)'), 
+                          marker = list(color = 'rgb(96, 167, 22)'),
+                          type = 'scatter', mode = 'lines+markers') 
+
+fig <- fig %>% add_trace(x = df['Country'],
+                         y = df['Freedom'],
+                         name = "Freedom",
+                         line = list(color = 'rgb(255, 0, 0)'), 
+                         marker = list(color = 'rgb(255, 0, 0)'),
+                         type = 'scatter', mode = 'lines+markers')
+
+fig <- fig %>% add_trace(x = df['Country'],
+                         y = df['Generosity'],
+                         name = "Generosity",
+                         line = list(color = 'rgb(255, 255, 0)'), 
+                         marker = list(color = 'rgb(255, 255, 0)'),
+                         type = 'scatter', mode = 'lines+markers')
+
+fig <-fig %>% add_trace(x = df['Country'],
+                        y = df['Perceptions.of.corruption'],
+                        name = "Perceptions of corruption",
+                        line = list(color = 'rgb(0, 0, 128)'), 
+                        marker = list(color = 'rgb(0, 0, 128)'),
+                        type = 'scatter', mode = 'lines+markers')
+
+fig <- fig %>% layout(title = "Faktor Yang Mempengaruhi Tingkat Kebahagiaan di Dunia",
+                         xaxis = list(title = "Country"),
+                         yaxis = list (title = "Happiness"))
+
+fig
+```
